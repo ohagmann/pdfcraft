@@ -2839,3 +2839,6 @@ theme	Appearance	Išvaizda
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	Šio atsakymo parinktys
 	Export value	Eksporto reikšmė
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	Pritraukimas prie brėžinio: įjungtas
+	Snap to drawing: off	Pritraukimas prie brėžinio: išjungtas

@@ -2491,3 +2491,6 @@ animation effects	Off	Выкл
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	Параметры этого ответа
 	Export value	Значение экспорта
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	Привязка к чертежу: вкл.
+	Snap to drawing: off	Привязка к чертежу: выкл.

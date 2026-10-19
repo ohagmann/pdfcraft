@@ -2578,3 +2578,6 @@ animation effects	Off	オフ
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	この返信のオプション
 	Export value	書き出し値
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	図面にスナップ: オン
+	Snap to drawing: off	図面にスナップ: オフ

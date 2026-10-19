@@ -2542,3 +2542,6 @@ animation effects	Off	关
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	此回复的选项
 	Export value	导出值
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	吸附到图形：开
+	Snap to drawing: off	吸附到图形：关

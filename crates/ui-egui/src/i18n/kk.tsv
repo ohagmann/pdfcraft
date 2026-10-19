@@ -2576,3 +2576,6 @@ animation effects	Off	Өшірулі
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	Осы жауаптың параметрлері
 	Export value	Экспорт мәні
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	Сызбаға бекіту: қосулы
+	Snap to drawing: off	Сызбаға бекіту: өшірулі

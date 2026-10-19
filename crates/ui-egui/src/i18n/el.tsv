@@ -2584,3 +2584,6 @@ animation effects	Off	Ανενεργά
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	Επιλογές για αυτήν την απάντηση
 	Export value	Τιμή εξαγωγής
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	Προσκόλληση στο σχέδιο: ενεργή
+	Snap to drawing: off	Προσκόλληση στο σχέδιο: ανενεργή

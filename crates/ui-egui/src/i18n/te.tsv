@@ -2487,3 +2487,6 @@ animation effects	Off	ఆఫ్
 # Comments panel: each reply's own "…" menu (AI-assisted, not separately native-reviewed)
 	Options for this reply	ఈ ప్రత్యుత్తరం ఎంపికలు
 	Export value	ఎగుమతి విలువ
+# Snap to drawing for the drawing tools (M5).
+	Snap to drawing: on	డ్రాయింగ్‌కు స్నాప్: ఆన్
+	Snap to drawing: off	డ్రాయింగ్‌కు స్నాప్: ఆఫ్
