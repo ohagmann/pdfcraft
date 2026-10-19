@@ -839,6 +839,7 @@ struct PageEnv<'a> {
     by_line: &'a String,
     calc_order: bool,
     can_copy: bool,
+    can_paste: bool,
     can_crop: bool,
     can_fill: bool,
     can_modify: bool,
@@ -892,6 +893,8 @@ struct PageEnv<'a> {
 struct PageOut {
     canvas_action: Option<comments::CanvasAction>,
     clicked_link: Option<LinkTarget>,
+    comment_notice: Option<&'static str>,
+    copy_comments: bool,
     copy_selected: bool,
     field_menu: Option<FieldMenu>,
     field_placed: bool,
@@ -902,6 +905,7 @@ struct PageOut {
     open_initials: bool,
     open_signature: bool,
     open_table: Option<(usize, [f64; 4])>,
+    paste_comments_at: Option<(usize, [f64; 2])>,
     primary_down: bool,
     refused: Option<String>,
     stamp_placed: bool,
@@ -1949,6 +1953,7 @@ fn draw_pages(
         boost_extra,
         calc_order,
         can_copy,
+        can_paste,
         can_modify,
         content_h,
         content_w,
@@ -2233,11 +2238,18 @@ fn draw_pages(
             }
         }
         canvas_action =
-            comments::context_menu(ui, view, info, &|page, index| doc.annotation_deletable(page, index), prefs, allowed, can_modify).or(copy_image);
+            comments::context_menu(ui, view, info, &|page, index| doc.annotation_deletable(page, index), prefs, allowed, can_paste, can_modify)
+                .or(copy_image);
     });
+    // Copy comments / Paste comments from the page's menu or a Comments panel card.
+    let copy_comments = std::mem::take(&mut view.comments.copy_request);
+    let paste_comments_at = view.comments.paste_request.take();
+    let comment_notice = view.comments.notice.take();
     *out = PageOut {
         canvas_action,
         clicked_link,
+        comment_notice,
+        copy_comments,
         copy_selected,
         field_menu,
         field_placed,
@@ -2248,6 +2260,7 @@ fn draw_pages(
         open_initials,
         open_signature,
         open_table,
+        paste_comments_at,
         primary_down: ptr.primary_down,
         refused,
         stamp_placed,
@@ -3133,6 +3146,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let units = app.units;
     let allowed = doc.allows_annotation();
     let can_copy = doc.allows_copying();
+    let can_paste = app.comment_clipboard.is_some();
     let comments_hidden = doc.comments_hidden();
     let form = doc.form.clone();
     let generation = doc.edit_generation();
@@ -3181,6 +3195,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         by_line: &by_line,
         calc_order,
         can_copy,
+        can_paste,
         can_crop,
         can_fill,
         can_modify,
@@ -3235,6 +3250,8 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let PageOut {
         canvas_action,
         clicked_link,
+        comment_notice,
+        copy_comments,
         mut copy_selected,
         field_menu,
         field_placed,
@@ -3245,6 +3262,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         open_initials,
         open_signature,
         open_table,
+        paste_comments_at,
         primary_down,
         mut refused,
         stamp_placed,
@@ -3475,6 +3493,15 @@ fn apply_frame_requests(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui, 
     }
     if copy_selected {
         app.execute("edit.copy");
+    }
+    if copy_comments {
+        app.copy_selected_comments(index);
+    }
+    if let Some(at) = paste_comments_at {
+        app.paste_comments(index, None, Some(at));
+    }
+    if let Some(notice) = comment_notice {
+        app.notify_tr(notice);
     }
     // Read mode hides the tools (#2646), and full screen is the page and nothing else (#1459);
     // the quick tools come back with the window.

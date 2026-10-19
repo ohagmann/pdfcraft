@@ -33,10 +33,32 @@ pub(crate) fn context_menu(
     deletable: &dyn Fn(usize, usize) -> bool,
     prefs: &CommentPrefs,
     allowed: bool,
+    can_paste: bool,
     can_modify: bool,
 ) -> Option<CanvasAction> {
     let mut action = None;
+    // Connected lines, a polygon or a cloud being drawn: finish it from the menu, as other
+    // editors do (Enter and a double-click finish it too), take the last point back, or stop.
+    if let Some(Gesture::Draw { tool, points, .. }) = &view.comments.gesture
+        && tool.clicks_points()
+    {
+        let enough = points.len() >= if *tool == CommentTool::PolyLine { 2 } else { 3 };
+        if ui.add_enabled(enough, egui::Button::new(tl!("Complete"))).clicked() {
+            view.comments.finish_request = true;
+            ui.close();
+        }
+        if ui.button(tl!("Undo last point")).clicked() {
+            view.comments.undo_point();
+            ui.close();
+        }
+        if ui.button(tl!("Cancel drawing")).clicked() {
+            view.comments.gesture = None;
+            ui.close();
+        }
+        return None;
+    }
     let selected = view.comments.selected.and_then(|(p, i)| info.annotations.iter().find(|a| a.page == p && a.index == i && !a.is_reply()));
+    let several = view.comments.also.len();
     match selected {
         Some(a) => {
             let (page, index) = (a.page, a.index);
@@ -92,10 +114,24 @@ pub(crate) fn context_menu(
                 ui.close();
             }
             ui.separator();
-            // The engine's own check: a locked comment, or one with a locked reply, stays.
-            if ui.add_enabled(allowed && deletable(page, index), egui::Button::new(tl!("Delete"))).clicked() {
-                view.comments.selected = None;
-                action = Some(CanvasAction::Edit(Box::new(Edit::DeleteAnnotation { page, index })));
+            // The comments themselves, to paste into this or another document (⌘C / ⌘V too).
+            let copy_key = crate::commands::shortcut_label(ui.ctx(), crate::commands::COPY);
+            if ui.add(egui::Button::new(tl!(if several > 0 { "Copy comments" } else { "Copy comment" })).shortcut_text(copy_key)).clicked() {
+                view.comments.copy_request = true;
+                ui.close();
+            }
+            let paste_key = crate::commands::shortcut_label(ui.ctx(), crate::commands::PASTE);
+            if ui.add_enabled(allowed && can_paste, egui::Button::new(tl!("Paste comments")).shortcut_text(paste_key)).clicked() {
+                let at = view.comments.context_at.unwrap_or((page, [f64::from(a.rect[0]), f64::from(a.rect[1])]));
+                view.comments.paste_request = Some(at);
+                ui.close();
+            }
+            ui.separator();
+            // The engine's own check, for each selected comment: a locked comment, or one with a
+            // locked reply, stays.
+            let deletes = deletable(page, index) && view.comments.also.iter().all(|&(p, i)| deletable(p, i));
+            if ui.add_enabled(allowed && deletes, egui::Button::new(tl!(if several > 0 { "Delete comments" } else { "Delete" }))).clicked() {
+                action = delete_selected(&mut view.comments).map(|e| CanvasAction::Edit(Box::new(e)));
                 ui.close();
             }
             if ui.add_enabled(allowed, egui::Button::new(tl!("Properties…"))).clicked() {
@@ -113,6 +149,13 @@ pub(crate) fn context_menu(
             {
                 view.comments.composer = Some(Composer { page, at, kind: ComposerKind::Note, text: String::new(), focus: true });
                 ui.close();
+            }
+            if let Some(at) = view.comments.context_at {
+                let paste_key = crate::commands::shortcut_label(ui.ctx(), crate::commands::PASTE);
+                if ui.add_enabled(allowed && can_paste, egui::Button::new(tl!("Paste comments")).shortcut_text(paste_key)).clicked() {
+                    view.comments.paste_request = Some(at);
+                    ui.close();
+                }
             }
             if ui.button(tl!("Comments panel")).clicked() {
                 action = Some(CanvasAction::OpenComments);

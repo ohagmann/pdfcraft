@@ -72,6 +72,21 @@ fn select_after_edit(
             }
         }
         Edit::DeleteAnnotation { page, index } => view.comments.annotation_deleted(annots_before, &info.annotations, (page, index)),
+        // Several selected comments deleted at once: none of them is left to select.
+        Edit::Batch { .. } => view.comments.clear_selection(),
+        // The copies are the page's newest comments (appended last): select them all.
+        Edit::PasteComments { xfdf, page, .. } => {
+            let n = pdfcraft_engine::comment_count(&xfdf);
+            let mut new: Vec<(usize, usize)> = info.annotations.iter().filter(|x| x.page == page && !x.is_reply()).map(|x| (page, x.index)).collect();
+            let keep = new.len().saturating_sub(n);
+            new.drain(..keep);
+            view.comments.clear_selection();
+            if !new.is_empty() {
+                view.comments.selected = Some(new.remove(0));
+                view.comments.also = new;
+                view.comments.reveal = true;
+            }
+        }
         _ => {}
     }
 }
