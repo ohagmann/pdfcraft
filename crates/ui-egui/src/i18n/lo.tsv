@@ -2481,3 +2481,5 @@ animation effects	Off	ປິດ
 	Unchecked reads	Unchecked reads
 	{field} reads fields named as it runs	{field} reads fields named as it runs
 	Some names are built as it runs	Some names are built as it runs
+# Turning a comment by its rotate handle: the undo label (M5).
+	Rotate comment	ໝູນຄວາມເຫັນ
