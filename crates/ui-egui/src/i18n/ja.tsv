@@ -2580,3 +2580,6 @@ animation effects	Off	オフ
 	Export value	書き出し値
 # Turning a comment by its rotate handle: the undo label (M5).
 	Rotate comment	注釈を回転
+
+# The rotate handle's tooltip (M5).
+	Drag to rotate · Shift: 15° steps · Tab while dragging: quarter turns	ドラッグで回転 · Shift: 15°刻み · ドラッグ中に Tab: 90°ずつ

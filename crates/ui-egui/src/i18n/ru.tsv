@@ -2493,3 +2493,6 @@ animation effects	Off	Выкл
 	Export value	Значение экспорта
 # Turning a comment by its rotate handle: the undo label (M5).
 	Rotate comment	Повернуть комментарий
+
+# The rotate handle's tooltip (M5).
+	Drag to rotate · Shift: 15° steps · Tab while dragging: quarter turns	Перетащите, чтобы повернуть · Shift: шаг 15° · Tab при перетаскивании: на четверть оборота
