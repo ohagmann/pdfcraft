@@ -2725,7 +2725,7 @@ mod tests {
         let mut h = egui_kittest::Harness::new_ui_state(
             |ui, (view, actions): &mut (DocView, Vec<CanvasAction>)| {
                 ui.button("Page").context_menu(|ui| {
-                    if let Some(a) = context_menu(ui, view, &info, &prefs, true) {
+                    if let Some(a) = context_menu(ui, view, &info, &prefs, true, false) {
                         actions.push(a);
                     }
                 });
