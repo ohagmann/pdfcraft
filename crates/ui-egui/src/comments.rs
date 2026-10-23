@@ -2601,6 +2601,7 @@ mod tests {
                 intent: None,
                 fill_sign: false,
                 points: Vec::new(),
+                turn: None,
             }],
             ..Default::default()
         };
