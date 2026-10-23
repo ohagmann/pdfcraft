@@ -304,7 +304,12 @@ pub struct SnapCache {
     paths: Vec<(usize, u64, Option<std::sync::Arc<measure::snap::Geometry>>)>,
     /// Pages (and generations) whose limit notice has been shown.
     warned: Vec<(usize, u64)>,
+    /// The comments drawn on a page, by generation and the `/Annots` places left out.
+    comments: Vec<CommentPaths>,
 }
+
+/// A page, generation, the `/Annots` places left out, and the comments' snap geometry.
+type CommentPaths = (usize, u64, Vec<usize>, Option<std::sync::Arc<measure::snap::Geometry>>);
 
 impl SnapCache {
     /// The paths of `page` as the document is now (`None` when the page can't be read). A page
@@ -333,6 +338,23 @@ impl SnapCache {
             self.paths.remove(0);
         }
         self.paths.push((page, generation, geometry.clone()));
+        geometry
+    }
+
+    /// The comments drawn with lines on `page`, as the document is now, but those at the
+    /// `/Annots` places in `except` (`None` when the page can't be read). Built again after an
+    /// edit, or when what is left out changes.
+    pub fn comments(&mut self, doc: &Document, page: usize, except: &[usize]) -> Option<std::sync::Arc<measure::snap::Geometry>> {
+        let generation = doc.edit_generation();
+        self.comments.retain(|(_, g, _, _)| *g == generation);
+        if let Some((_, _, _, cached)) = self.comments.iter().find(|(p, _, e, _)| *p == page && e == except) {
+            return cached.clone();
+        }
+        let geometry = doc.comment_paths(page, except).ok().map(std::sync::Arc::new);
+        if self.comments.len() >= SNAP_CACHE_PAGES {
+            self.comments.remove(0);
+        }
+        self.comments.push((page, generation, except.to_vec(), geometry.clone()));
         geometry
     }
 }
@@ -705,6 +727,9 @@ pub(crate) struct PageCx<'a> {
     /// The page's paths, when the tool's points snap to the drawing (Snap to drawing is on and
     /// the tool sets points or corners).
     pub snap: Option<std::sync::Arc<measure::snap::Geometry>>,
+    /// The comments already drawn on the page with lines (lines, connected lines, polygons,
+    /// rectangles, ovals), which snap like the page's paths; not the one being moved or reshaped.
+    pub snap_comments: Option<std::sync::Arc<measure::snap::Geometry>>,
     /// Tab's place among the snap candidates (see [`CommentView::snap_cycle`]).
     pub snap_cycle: Option<([f64; 2], isize)>,
 }
@@ -726,14 +751,37 @@ impl PageCx<'_> {
         all.get(i).map_or((u, None), |hit| (hit.point, Some(hit.kind)))
     }
 
+    /// Whether points snap: to the page's paths or to the comments drawn over it.
+    pub(crate) fn snapping(&self) -> bool {
+        self.snap.is_some() || self.snap_comments.is_some()
+    }
+
     /// The snap targets the user's choice allows within the reach (6 screen points at this zoom)
-    /// of user point `u`, nearest first; none without snapping.
+    /// of user point `u`, on the page's paths and the comments drawn over it, nearest first; none
+    /// without snapping.
     pub(crate) fn snap_candidates(&self, u: [f64; 2]) -> Vec<measure::snap::Snap> {
-        let Some(geometry) = &self.snap else { return Vec::new() };
+        if !self.snapping() {
+            return Vec::new();
+        }
         // The reach in user units: the screen distance of one user unit, at this zoom.
         let pixels_per_unit = self.to_screen([u[0] + 1.0, u[1]]).distance(self.to_screen(u)).max(1e-6);
         let tolerance = (SNAP_SENSITIVITY / f64::from(pixels_per_unit)).min(10_000.0);
-        geometry.candidates(u, tolerance, self.prefs.snap_targets).unwrap_or_default()
+        let mut all: Vec<measure::snap::Snap> = [&self.snap, &self.snap_comments]
+            .into_iter()
+            .flatten()
+            .flat_map(|g| g.candidates(u, tolerance, self.prefs.snap_targets).unwrap_or_default())
+            .collect();
+        // As each geometry orders its own: points (ends, centres, middles, crossings) nearest
+        // first, then the nearest point on a path; one of each place.
+        let path = |s: &measure::snap::Snap| s.kind == measure::snap::SnapKind::Path;
+        all.sort_by(|a, b| path(a).cmp(&path(b)).then_with(|| measure::snap::candidate_order(a, b)));
+        let mut out: Vec<measure::snap::Snap> = Vec::with_capacity(all.len());
+        for s in all {
+            if !(path(&s) && out.iter().any(path)) && !out.iter().any(|o| measure::distance(o.point, s.point) <= 1e-6) {
+                out.push(s);
+            }
+        }
+        out
     }
 
     /// The pointer `p` of a drag that started at `from`, moved so the first of `anchors` (screen
@@ -747,7 +795,7 @@ impl PageCx<'_> {
 
     /// [`Self::snap_drag`], with which of `anchors` landed on the target.
     fn snap_drag_by(&self, anchors: &[Pos2], mark: Option<f64>, from: Pos2, p: Pos2) -> (Pos2, Option<(SnapHit, usize)>) {
-        if self.snap.is_none() {
+        if !self.snapping() {
             return (p, None);
         }
         let travel = p - from;
@@ -1096,7 +1144,7 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, cx: &PageCx<'_>, 
         cv.snap_hover = None;
     }
     // The nearest target under the pointer, which Tab cycles from.
-    match pointer.filter(|_| over_page && cx.snap.is_some()) {
+    match pointer.filter(|_| over_page && cx.snapping()) {
         Some(p) => cv.snap_first = cx.snap_candidates(cx.to_user(p)).first().map(|s| (cx.page, s.point)),
         None if cv.snap_first.is_some_and(|(page, _)| page == cx.page) => cv.snap_first = None,
         None => {}
@@ -1545,7 +1593,7 @@ fn select_input(
     // Tab while a comment is moved: its next anchor goes where this one is now (on its target,
     // when it has one), so the target stays and the comment turns about it.
     if cv.anchor_steps != 0
-        && cx.snap.is_some()
+        && cx.snapping()
         && let Some(Gesture::Move { page, index, from }) = cv.gesture.as_mut()
         && *page == cx.page
         && let (Some(a), Some(p)) = (cx.get(*index), pointer)
@@ -1591,7 +1639,7 @@ fn select_input(
     }
     if let (Some(Gesture::Move { page, index, from }), Some(p)) = (&cv.gesture, pointer)
         && *page == cx.page
-        && cx.snap.is_some()
+        && cx.snapping()
         && let Some(a) = cx.get(*index)
         && let (moved, _, Some(i)) = cx.snap_move(a, *from, p, cv.move_anchor)
         && let Some(anchor) = cx.move_anchors(a).0.get(i)
@@ -2012,6 +2060,7 @@ pub(crate) fn composer(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, 
         allowed: true,
         hidden: false,
         snap: None,
+        snap_comments: None,
         snap_cycle: None,
         redact_mark: ([0.89, 0.13, 0.13], 1.0),
     };

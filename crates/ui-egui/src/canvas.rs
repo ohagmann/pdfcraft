@@ -3331,7 +3331,8 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
                 QuickTool::Select => true,
                 _ => false,
             };
-            let snap = if prefs.snap && snaps && (resp.hovered() || resp.dragged()) {
+            let snapping = prefs.snap && snaps && (resp.hovered() || resp.dragged());
+            let snap = if snapping {
                 let mut notice = None;
                 let geometry = view.comments.snap_cache.geometry(doc, i, &mut notice);
                 if notice.is_some() {
@@ -3341,8 +3342,37 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
             } else {
                 None
             };
+            // The comments already drawn snap too (lines join at their ends), but not the one
+            // being moved or reshaped, which would hold on to where it was.
+            let snap_comments = if snapping && !comments_hidden {
+                let except: Vec<usize> = match &view.comments.gesture {
+                    Some(
+                        comments::Gesture::Move { page, index, .. }
+                        | comments::Gesture::Resize { page, index, .. }
+                        | comments::Gesture::Reshape { page, index, .. },
+                    ) if *page == i => {
+                        vec![*index]
+                    }
+                    _ => Vec::new(),
+                };
+                view.comments.snap_cache.comments(doc, i, &except)
+            } else {
+                None
+            };
             let snap_cycle = view.comments.snap_cycle;
-            let pcx = comments::PageCx { page: i, xf: &xf, info, tool, prefs, allowed, hidden: comments_hidden, redact_mark, snap, snap_cycle };
+            let pcx = comments::PageCx {
+                page: i,
+                xf: &xf,
+                info,
+                tool,
+                prefs,
+                allowed,
+                hidden: comments_hidden,
+                redact_mark,
+                snap,
+                snap_comments,
+                snap_cycle,
+            };
             if let QuickTool::Measure(measure_tool) = tool {
                 crate::measure_ui::page_input(ui, &resp, doc, view, &pcx, measure_tool, units);
             }
