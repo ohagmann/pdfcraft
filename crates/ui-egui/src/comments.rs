@@ -1175,7 +1175,7 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, cx: &PageCx<'_>, 
                 ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
             }
             // Snapping (shapes and lines, not freehand): the marker shows where a point would
-            // land; Shift holds a line to the nearest 45°.
+            // land.
             if tool.snaps()
                 && let Some(p) = pointer.filter(|_| over_page)
                 && let (u, Some(kind)) = cx.snapped(p)
@@ -1202,13 +1202,7 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, cx: &PageCx<'_>, 
                         points.push(u);
                     }
                 } else {
-                    let mut u = cx.snapped(p).0;
-                    if matches!(*tool, CommentTool::Line | CommentTool::Arrow)
-                        && ui.input(|i| i.modifiers.shift)
-                        && let Some(first) = points.first()
-                    {
-                        u = measure::snap::constrain(*first, u);
-                    }
+                    let u = cx.snapped(p).0;
                     points.truncate(1);
                     points.push(u);
                 }
@@ -1270,14 +1264,7 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, cx: &PageCx<'_>, 
                 && over_page
                 && let Some(p) = pointer
             {
-                let mut u = cx.snapped(p).0;
-                // Shift holds the next segment to the nearest 45° from the last point.
-                if ui.input(|i| i.modifiers.shift)
-                    && let Some(Gesture::Draw { points, .. }) = &cv.gesture
-                    && let Some(last) = points.last()
-                {
-                    u = measure::snap::constrain(*last, u);
-                }
+                let u = cx.snapped(p).0;
                 match cv.gesture.as_mut() {
                     Some(Gesture::Draw { page, tool: t, points }) if *page == cx.page && *t == tool => {
                         // Clicking the first point again closes a polygon.
