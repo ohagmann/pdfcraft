@@ -178,6 +178,8 @@ fn double_clicking_a_cards_text_edits_it() {
     }
     h.run_steps(2);
     assert_eq!(h.state().views[0].comments.editing, Some((0, 0, "Edit this note".into())));
+    // And the editor is drawn.
+    note_editor(&h);
 }
 
 #[test]
