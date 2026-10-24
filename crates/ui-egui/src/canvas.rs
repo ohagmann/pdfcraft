@@ -840,6 +840,8 @@ struct PageEnv<'a> {
     calc_order: bool,
     can_copy: bool,
     can_paste: bool,
+    /// Copied comments hang on the pointer (`Gesture::Place`): the click is theirs.
+    placing: bool,
     can_crop: bool,
     can_fill: bool,
     can_modify: bool,
@@ -1122,6 +1124,7 @@ fn page_tool_input(ui: &mut egui::Ui, view: &mut DocView, frame: &mut PageFrame<
         form,
         info,
         initials,
+        placing,
         prefs,
         preparing,
         redact_mark,
@@ -1265,14 +1268,14 @@ fn page_tool_input(ui: &mut egui::Ui, view: &mut DocView, frame: &mut PageFrame<
         view.current = i;
         frame.out.open_boxes = true;
     }
-    let on_field = if preparing {
+    let on_field = if preparing && !placing {
         let o = crate::prepare::page_input(cx, form, field_tool, prepare_allowed, view);
         frame.out.field_props |= o.properties;
         frame.out.field_placed |= o.placed;
         frame.out.open_table = frame.out.open_table.or(o.table);
         o.consumed || field_tool.is_some()
     } else {
-        tool == QuickTool::Select && crate::forms_ui::page_input(cx, form, can_fill, view)
+        tool == QuickTool::Select && !placing && crate::forms_ui::page_input(cx, form, can_fill, view)
     };
     // Redact draws boxes off text; so does Highlight (an area highlight, as in Acrobat).
     let area_tool = tool == QuickTool::Redact && can_modify || tool == QuickTool::Comment(comments::CommentTool::Highlight) && allowed;
@@ -1299,7 +1302,7 @@ fn page_tool_input(ui: &mut egui::Ui, view: &mut DocView, frame: &mut PageFrame<
         }
         view.content.selected = None;
     }
-    let on_content = !on_objects && editing_content && can_modify && {
+    let on_content = !on_objects && !placing && editing_content && can_modify && {
         source_blocked
             || crate::content_ui::page_input(
                 cx,
@@ -3138,7 +3141,11 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let sharp_held = hold_sharp_renders(ui, view, scale);
     view.current_scale_tag = tag;
     let hand = app.quick_tool == QuickTool::Hand;
-    let tool = app.quick_tool;
+    // Copied comments hanging on the pointer take the next click whatever tool is on: the page
+    // sees the Select tool until the bundle is placed or let go, and no form field, added
+    // content or field being prepared takes the click either.
+    let placing = matches!(view.comments.gesture, Some(comments::Gesture::Place { .. }));
+    let tool = if placing { QuickTool::Select } else { app.quick_tool };
     // Text selection runs for the Select tool and for the markup tools (highlight…).
     let selects_text = tool_selects_text(tool, preparing);
     let prefs = &app.comment_prefs;
@@ -3159,7 +3166,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     // In Preferences ▸ Date format, or why it can't be stamped into the PDF.
     let date_text = crate::date_text_for_pdf(&app.session);
     let by_line = app.session.stamp_by_line(&author);
-    let custom_stamp = match app.quick_tool {
+    let custom_stamp = match tool {
         QuickTool::CustomStamp(i) => app.custom_stamps.get(i).cloned(),
         _ => None,
     };
@@ -3197,6 +3204,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         calc_order,
         can_copy,
         can_paste,
+        placing,
         can_crop,
         can_fill,
         can_modify,
