@@ -143,12 +143,18 @@ fn sidebar_comment_centres_the_annotation_at_high_zoom() {
     }
 }
 
-/// A double-click on the text of a selected card in the Comments panel edits it, as one on its
-/// header does (a click there would select a word).
+/// A double-click on the text of a card in the Comments panel edits it, as one on its header does
+/// (a click there would select a word): on a selected card, and on one the first click selects.
 #[test]
 fn double_clicking_a_cards_text_edits_it() {
+    for selected in [true, false] {
+        double_click_a_cards_text(selected);
+    }
+}
+
+fn double_click_a_cards_text(selected: bool) {
     // Frames 1/60 s apart, so two clicks make a double-click.
-    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).with_step_dt(1.0 / 60.0).build_eframe(|_cc| {
+    let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).with_step_dt(1.0 / 60.0).build_eframe(move |_cc| {
         let mut app = PdfCraftApp::new();
         app.set_option("language", "en").unwrap();
         app.open_bytes("text.pdf", None, TEXT_FIXTURE.to_vec()).expect("opens");
@@ -162,11 +168,12 @@ fn double_clicking_a_cards_text_edits_it() {
             contents: "Edit this note".into(),
             author: "Tester".into(),
         })));
-        app.views[0].comments.selected = Some((0, 0));
+        app.views[0].comments.selected = selected.then_some((0, 0));
         app
     });
     h.run_steps(4);
     crate::support::settle(&mut h);
+    assert_eq!(h.state().views[0].comments.selected.is_some(), selected);
     let p = h.query_all_by_label("Edit this note").next().expect("the card's text").rect().center();
     h.hover_at(p);
     h.run_steps(1);
@@ -177,7 +184,8 @@ fn double_clicking_a_cards_text_edits_it() {
         h.run_steps(1);
     }
     h.run_steps(2);
-    assert_eq!(h.state().views[0].comments.editing, Some((0, 0, "Edit this note".into())));
+    assert_eq!(h.state().views[0].comments.selected, Some((0, 0)), "selected: {selected}");
+    assert_eq!(h.state().views[0].comments.editing, Some((0, 0, "Edit this note".into())), "selected: {selected}");
     // And the editor is drawn.
     note_editor(&h);
 }
