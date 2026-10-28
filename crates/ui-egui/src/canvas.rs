@@ -2083,6 +2083,7 @@ fn draw_pages(
         primary_down: _,
         refused,
         stamp_placed,
+        ..
     } = page_out;
     let painter = ui.painter();
     if calc_order {
@@ -3366,6 +3367,10 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
         open_table,
         form_notice,
         copy_selected,
+        copy_comments,
+        paste_comments_at,
+        comment_notice,
+        recolour,
         remote_open,
         form,
         generation,
@@ -3387,6 +3392,13 @@ struct FrameRequests {
     open_table: Option<(usize, [f64; 4])>,
     form_notice: Option<crate::forms_ui::FormNotice>,
     copy_selected: bool,
+    /// Copy comments / Paste comments from the page's menu or a Comments panel card, and what
+    /// the comment tools have to say.
+    copy_comments: bool,
+    paste_comments_at: Option<(usize, [f64; 2])>,
+    comment_notice: Option<&'static str>,
+    /// A colour picked for every selected comment (Colour in the page's menu).
+    recolour: Option<pdfcraft_engine::Rgb>,
     remote_open: Option<(pdfcraft_engine::DocId, String, pdfcraft_render::RemoteDestination)>,
     form: Arc<Vec<pdfcraft_engine::FormField>>,
     generation: u64,
@@ -3407,6 +3419,10 @@ fn apply_frame_requests(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui, 
         open_table,
         form_notice,
         copy_selected,
+        copy_comments,
+        paste_comments_at,
+        comment_notice,
+        recolour,
         remote_open,
         form,
         generation,
