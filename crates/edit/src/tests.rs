@@ -275,6 +275,49 @@ fn header_bates_start_that_would_overflow_is_refused_without_drawing() {
 }
 
 #[test]
+fn marked_pages_that_share_resources_share_one_extended_copy() {
+    let mut hf = HeaderFooter::default();
+    hf.text[5] = "Seite <<1>> von <<n>>".into();
+    type Mark = fn(&mut Document, &HeaderFooter);
+    let marks: [(&str, Mark); 3] = [
+        ("header and footer", |doc, hf| add_header_footer(doc, &[0, 1, 2], hf, false, &cx()).unwrap()),
+        ("watermark", |doc, _| add_watermark(doc, &[0, 1, 2], &Watermark { text: "DRAFT".into(), ..Watermark::default() }, false).unwrap()),
+        ("background", |doc, _| {
+            add_background(doc, &[0, 1, 2], &Background { color: [1.0, 1.0, 0.9], opacity: 1.0, ..Background::default() }, false).unwrap()
+        }),
+    ];
+    for (what, mark) in marks {
+        let mut doc = fixture();
+        mark(&mut doc, &hf);
+        let doc = reopen(&doc);
+        // The fixture's three pages inherit `6 0 R`: one copy with the mark's font for all three.
+        let refs: Vec<Option<ObjRef>> = pdfcraft_model::pages(&doc).iter().map(|p| p.dict.get(b"Resources").and_then(Object::as_ref)).collect();
+        assert!(refs[0].is_some() && refs.iter().all(|r| *r == refs[0]), "{what}: {refs:?}");
+        assert_ne!(refs[0], Some(ObjRef::new(6, 0)), "{what}");
+        let fonts = |r: ObjRef| doc.get(r).as_dict().and_then(|d| d.get(b"Font")).and_then(Object::as_dict).cloned().unwrap();
+        let copy = fonts(refs[0].unwrap());
+        assert!(copy.contains(b"F1") && copy.contains(b"PCHelv"), "{what}: the page keeps its own fonts");
+        assert_eq!(fonts(ObjRef::new(6, 0)).len(), 1, "{what}: the shared original stays as it was");
+    }
+}
+
+#[test]
+fn marking_pages_reads_the_page_tree_a_fixed_number_of_times() {
+    let mut hf = HeaderFooter::default();
+    hf.text[1] = "<<1>>".into();
+    let walks = |pages: &[usize]| {
+        let mut doc = fixture();
+        let before = place::PAGE_LISTS.with(std::cell::Cell::get);
+        add_header_footer(&mut doc, pages, &hf, false, &cx()).unwrap();
+        add_watermark(&mut doc, pages, &Watermark { text: "DRAFT".into(), ..Watermark::default() }, false).unwrap();
+        add_background(&mut doc, pages, &Background { color: [1.0, 1.0, 0.9], opacity: 1.0, ..Background::default() }, false).unwrap();
+        place::PAGE_LISTS.with(std::cell::Cell::get) - before
+    };
+    // Reading the whole list again for every page made a 3,753-page plot quadratic.
+    assert_eq!(walks(&[0]), walks(&[0, 1, 2]));
+}
+
+#[test]
 fn replace_and_remove_restore_the_original_content() {
     let mut doc = fixture();
     let original = streams(&doc, 0);
