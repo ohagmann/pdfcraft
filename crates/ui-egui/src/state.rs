@@ -229,7 +229,6 @@ pub struct PagePropsDraft {
     pub tab_order: Option<pdfcraft_engine::TabOrder>,
 }
 
-/// Copied pages: their document's name and bytes (as it was when copied) and the pages.
 /// Copied comments: their XFDF (each with its replies), for `Edit::PasteComments`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommentClip {
@@ -238,6 +237,7 @@ pub struct CommentClip {
     pub count: usize,
 }
 
+/// Copied pages: their document's name and bytes (as it was when copied) and the pages.
 #[derive(Clone, Debug)]
 pub struct PageClip {
     /// The document the pages were copied from: pasting back into it keeps field names.
