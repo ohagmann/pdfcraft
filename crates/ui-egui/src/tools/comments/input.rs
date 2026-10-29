@@ -31,8 +31,9 @@ pub(crate) fn page_input(ui: &egui::Ui, resp: &egui::Response, cx: &PageCx<'_>, 
     // on this page; a right-click lets it go. Nothing else on the page takes the click.
     if let Some(Gesture::Place { xfdf, bounds, .. }) = cv.gesture.clone() {
         if over_page {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+            view.cursor.claim(Layer::Drag, egui::CursorIcon::Grabbing);
         }
+        let cv = &mut view.comments;
         if resp.secondary_clicked() {
             cv.gesture = None;
             return true;
