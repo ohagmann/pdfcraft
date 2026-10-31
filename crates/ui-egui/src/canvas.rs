@@ -2241,9 +2241,15 @@ fn draw_pages(
                 ui.separator();
             }
         }
-        canvas_action =
-            comments::context_menu(ui, view, info, &|page, index| doc.annotation_deletable(page, index), prefs, allowed, can_paste, can_modify)
-                .or(copy_image);
+        canvas_action = comments::context_menu(
+            ui,
+            view,
+            info,
+            &|page, index| doc.annotation_deletable(page, index),
+            prefs,
+            comments::MenuRights { allowed, can_paste, can_modify },
+        )
+        .or(copy_image);
     });
     // Copy comments / Paste comments from the page's menu or a Comments panel card.
     let copy_comments = std::mem::take(&mut view.comments.copy_request);

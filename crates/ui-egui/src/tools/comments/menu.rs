@@ -23,8 +23,18 @@ pub(crate) fn attachment_items(ui: &mut egui::Ui, view: &mut DocView, info: &Doc
     ui.separator();
 }
 
+/// What the canvas context menu may offer.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct MenuRights {
+    /// Comments may be added and changed.
+    pub(crate) allowed: bool,
+    /// Copied comments wait to be pasted.
+    pub(crate) can_paste: bool,
+    /// The document's pages may change (Flatten comments draws into them).
+    pub(crate) can_modify: bool,
+}
+
 /// Items of the canvas context menu for the selected comment (or the page).
-/// `can_modify`: the document's pages may change (Flatten comments draws into them).
 /// `deletable`: whether Delete would delete the comment at (page, index) (the engine's
 /// `Document::annotation_deletable`: unlocked, and no locked reply to it).
 pub(crate) fn context_menu(
@@ -33,10 +43,9 @@ pub(crate) fn context_menu(
     info: &DocInfo,
     deletable: &dyn Fn(usize, usize) -> bool,
     prefs: &CommentPrefs,
-    allowed: bool,
-    can_paste: bool,
-    can_modify: bool,
+    rights: MenuRights,
 ) -> Option<CanvasAction> {
+    let MenuRights { allowed, can_paste, can_modify } = rights;
     let mut action = None;
     // Connected lines, a polygon or a cloud being drawn: finish it from the menu, as other
     // editors do (Enter and a double-click finish it too), take the last point back, or stop.
